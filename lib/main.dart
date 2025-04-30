@@ -2,11 +2,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-
-
 import 'package:device_preview/device_preview.dart';
 import 'package:trab_labsoft/firebase_options.dart';
+import 'package:trab_labsoft/models/instrumentais/instrumentais_list.dart';
 import 'package:trab_labsoft/pages/auth/check_page.dart';
 import 'package:trab_labsoft/pages/auth/login_page.dart';
 
@@ -17,10 +15,15 @@ void main() async {
   );
 
 
-  runApp(
-    DevicePreview(
-      enabled: true,
-      builder: (context) => MyApp(), // Wrap your app
+ runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => InstrumentaisList()),
+      ],
+      child:  DevicePreview(
+        enabled: true,
+        builder: (context) => MyApp(), 
+      ),
     ),
   );
 }

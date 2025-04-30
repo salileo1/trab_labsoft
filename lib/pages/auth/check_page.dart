@@ -1,9 +1,8 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:trab_labsoft/pages/auth/login_page.dart';
-import 'homepage.dart';
+import '../home/homepage.dart';
 
 class checkPage extends StatefulWidget {
   const checkPage({super.key});
@@ -37,7 +36,7 @@ class _checkPageState extends State<checkPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       body: Center(
         child: CircularProgressIndicator(),
       ),
