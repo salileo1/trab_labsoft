@@ -4,11 +4,14 @@ import 'package:intl/intl.dart';
 import 'package:toastification/toastification.dart';
 import 'package:trab_labsoft/components/login/cadastro_container.dart';
 import 'package:trab_labsoft/components/utils/toast_snackbar.dart';
+import 'package:trab_labsoft/models/users/usuario_form_data.dart';
+import 'package:trab_labsoft/models/users/usuario_model.dart';
 import 'package:trab_labsoft/pages/auth/check_page.dart';
 
 
 class cadastroPage extends StatefulWidget {
-  const cadastroPage({super.key});
+   final void Function(UsuarioFormData formData)? onSubmit;
+   const cadastroPage({super.key, this.onSubmit});
 
   @override
   State<cadastroPage> createState() => _cadastroPageState();
@@ -27,6 +30,7 @@ class _cadastroPageState extends State<cadastroPage> {
   @override
   Widget build(BuildContext context) {
     bool isLargeScreen = MediaQuery.of(context).size.width > 1000;
+    final UsuarioFormData _formData = UsuarioFormData();
 
     return Scaffold(
        backgroundColor: Color(0xFFF2E8C7),
@@ -64,6 +68,28 @@ class _cadastroPageState extends State<cadastroPage> {
                             width: 150,
                           ),
                         ],
+                      ),
+                      DropdownButtonFormField<TipoUsuario>(
+                        decoration: InputDecoration(labelText: 'Tipo de Usuário'),
+                        value: _formData.tipoUsuario,
+                        items: TipoUsuario.values.map((TipoUsuario tipo) {
+                          return DropdownMenuItem<TipoUsuario>(
+                            value: tipo,
+                            child: Text(tipoUsuarioToString(tipo)),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _formData.tipoUsuario = value ?? TipoUsuario.hospital;
+                          });
+                        },
+                        onSaved: (value) => _formData.tipoUsuario = value ?? TipoUsuario.hospital,
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Selecione o tipo de usuário.';
+                          }
+                          return null;
+                        },
                       ),
                         _buildTextField("Nome completo", _nomeController),
                         _buildTextField("Email", _emailController),
