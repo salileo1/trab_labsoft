@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:trab_labsoft/components/login/login_container.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:trab_labsoft/models/users/usuario_model.dart';
 import 'package:trab_labsoft/pages/auth/check_page.dart';
-
 
 import 'cadastro_page.dart';
 
@@ -18,7 +20,6 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   final _firebaseAuth = FirebaseAuth.instance;
 
-
   @override
   Widget build(BuildContext context) {
     bool isLargeScreen = MediaQuery.of(context).size.width > 700;
@@ -28,7 +29,6 @@ class _LoginPageState extends State<LoginPage> {
       appBar: AppBar(
         backgroundColor: Color.fromARGB(255, 255, 255, 255),
         elevation: 0,
-        
       ),
       body: Row(
         children: [
@@ -45,9 +45,7 @@ class _LoginPageState extends State<LoginPage> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('ALUGUEL DE INSTRUMENTAIS CIRÚGICOS')
-                        ],
+                        children: [Text('ALUGUEL DE INSTRUMENTAIS CIRÚGICOS')],
                       ),
                       const Padding(
                         padding: EdgeInsets.all(15),
@@ -65,7 +63,7 @@ class _LoginPageState extends State<LoginPage> {
                         key: const ValueKey('email'),
                         controller: _emailController,
                         decoration: InputDecoration(
-                          contentPadding:const EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             vertical: 5,
                             horizontal: 15,
                           ),
@@ -158,7 +156,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       SizedBox(height: 10),
-                      
                       SizedBox(
                           width: double.infinity,
                           child: Row(
@@ -197,38 +194,64 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+login() async {
+  try {
+    UserCredential userCredential =
+        await _firebaseAuth.signInWithEmailAndPassword(
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
 
-  login() async {
-    try {
-      UserCredential userCredential =
-          await _firebaseAuth.signInWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
+    if (userCredential.user != null) {
+      final uid = userCredential.user!.uid;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!doc.exists || doc.data() == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Dados do usuário não encontrados."),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      print(doc.data()!);
+      final prefs = await SharedPreferences.getInstance();
+      prefs.setString('usuarioId', doc.data()!['uid']);
+      prefs.setString('usuarioNome', doc.data()!['nome']);
+      prefs.setString('tipoUsuario',  doc.data()!['tipoUsuario']);
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => checkPage(),
+        ),
       );
-      if (userCredential.user != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => checkPage(),
-          ),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Usuário não encontrado"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      } else if (e.code == "wrong-password") {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Senha incorreta"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+    }
+  } on FirebaseAuthException catch (e) {
+    if (!mounted) return;
+    if (e.code == 'user-not-found') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Usuário não encontrado"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } else if (e.code == "wrong-password") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Senha incorreta"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
+}
 }

@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:toastification/toastification.dart';
 import 'package:trab_labsoft/components/login/cadastro_container.dart';
 import 'package:trab_labsoft/components/utils/toast_snackbar.dart';
@@ -8,10 +10,9 @@ import 'package:trab_labsoft/models/users/usuario_form_data.dart';
 import 'package:trab_labsoft/models/users/usuario_model.dart';
 import 'package:trab_labsoft/pages/auth/check_page.dart';
 
-
 class cadastroPage extends StatefulWidget {
-   final void Function(UsuarioFormData formData)? onSubmit;
-   const cadastroPage({super.key, this.onSubmit});
+  final void Function(UsuarioFormData formData)? onSubmit;
+  const cadastroPage({super.key, this.onSubmit});
 
   @override
   State<cadastroPage> createState() => _cadastroPageState();
@@ -23,6 +24,9 @@ class _cadastroPageState extends State<cadastroPage> {
   final _passwordController = TextEditingController();
   final _telefoneController = TextEditingController();
   final _firebaseAuth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+  final _formData =
+      UsuarioFormData(); // Mover para cá para ser acessível no cadastrar
 
   String? _generoSelecionado;
   DateTime? _dataNascimento;
@@ -30,10 +34,10 @@ class _cadastroPageState extends State<cadastroPage> {
   @override
   Widget build(BuildContext context) {
     bool isLargeScreen = MediaQuery.of(context).size.width > 1000;
-    final UsuarioFormData _formData = UsuarioFormData();
+    // final UsuarioFormData _formData = UsuarioFormData(); // Removido daqui
 
     return Scaffold(
-       backgroundColor: Color(0xFFF2E8C7),
+      backgroundColor: Color(0xFFF2E8C7),
       appBar: AppBar(
         backgroundColor: Color(0xFFF2E8C7),
         elevation: 0,
@@ -47,7 +51,6 @@ class _cadastroPageState extends State<cadastroPage> {
       body: SingleChildScrollView(
         child: Row(
           children: [
-            
             Expanded(
               child: Center(
                 child: Padding(
@@ -59,63 +62,80 @@ class _cadastroPageState extends State<cadastroPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.network(
-                            'https://firebasestorage.googleapis.com/v0/b/sense-pel.appspot.com/o/image-removebg-preview.png?alt=media&token=9a7a4329-f7b2-4d95-bc97-1d9fd7959f51',
-                            height: 150,
-                            width: 150,
-                          ),
-                        ],
-                      ),
-                      DropdownButtonFormField<TipoUsuario>(
-                        decoration: InputDecoration(labelText: 'Tipo de Usuário'),
-                        value: _formData.tipoUsuario,
-                        items: TipoUsuario.values.map((TipoUsuario tipo) {
-                          return DropdownMenuItem<TipoUsuario>(
-                            value: tipo,
-                            child: Text(tipoUsuarioToString(tipo)),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _formData.tipoUsuario = value ?? TipoUsuario.hospital;
-                          });
-                        },
-                        onSaved: (value) => _formData.tipoUsuario = value ?? TipoUsuario.hospital,
-                        validator: (value) {
-                          if (value == null) {
-                            return 'Selecione o tipo de usuário.';
-                          }
-                          return null;
-                        },
-                      ),
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.network(
+                              'https://firebasestorage.googleapis.com/v0/b/sense-pel.appspot.com/o/image-removebg-preview.png?alt=media&token=9a7a4329-f7b2-4d95-bc97-1d9fd7959f51',
+                              height: 150,
+                              width: 150,
+                            ),
+                          ],
+                        ),
+                        DropdownButtonFormField<TipoUsuario>(
+                          decoration:
+                              InputDecoration(labelText: 'Tipo de Usuário'),
+                          value: _formData.tipoUsuario,
+                          items: TipoUsuario.values.map((TipoUsuario tipo) {
+                            return DropdownMenuItem<TipoUsuario>(
+                              value: tipo,
+                              child: Text(tipoUsuarioToString(
+                                  tipo)), // Assumindo que tipoUsuarioToString existe
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _formData.tipoUsuario =
+                                  value ?? TipoUsuario.hospital;
+                            });
+                          },
+                          // onSaved não é necessário aqui se _formData é variável de estado
+                          validator: (value) {
+                            if (value == null) {
+                              return 'Selecione o tipo de usuário.';
+                            }
+                            return null;
+                          },
+                        ),
                         _buildTextField("Nome completo", _nomeController),
                         _buildTextField("Email", _emailController),
-                        _buildTextField("Senha", _passwordController, obscureText: true),
+                        _buildTextField("Senha", _passwordController,
+                            obscureText: true),
                         _buildTextField("Telefone", _telefoneController),
                         Row(
                           children: [
                             Expanded(
-                              child: _buildDropdownField("Gênero", _generoSelecionado, ['Masculino', 'Feminino', 'Outro']),
+                              child: _buildDropdownField(
+                                  "Gênero",
+                                  _generoSelecionado,
+                                  ["Masculino", "Feminino", "Outro"]),
                             ),
-                            SizedBox(width: 15),  // Espaço entre os dois campos
+                            SizedBox(width: 15), // Espaço entre os dois campos
                             Expanded(
-                              child: _buildDateField("Data de Nascimento", context),
+                              child: _buildDateField(
+                                  "Data de Nascimento", context),
                             ),
                           ],
                         ),
                         SizedBox(height: 10),
                         ElevatedButton(
                           onPressed: () {
-                            if (_nomeController.text.toLowerCase() == 'bloqueio') {
-                              showToast(context, 'Não foi possível cadastrar', 'Não é permitido criar um usuario com esse nome', ToastificationType.error);
-                            }else{
+                            if (_nomeController.text.toLowerCase() ==
+                                'bloqueio') {
+                              showToast(
+                                  context,
+                                  'Não foi possível cadastrar',
+                                  'Não é permitido criar um usuario com esse nome',
+                                  ToastificationType.error);
+                            } else {
                               cadastrar();
                             }
                           },
-                          child: Text('Cadastrar', style: TextStyle(color: Colors.white, fontFamily: 'Montserrat',)),
+                          child: Text('Cadastrar',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Montserrat',
+                              )),
                           style: ElevatedButton.styleFrom(
                             elevation: 10.0,
                             backgroundColor: Color(0xFF212E38),
@@ -133,7 +153,11 @@ class _cadastroPageState extends State<cadastroPage> {
                           onPressed: () {
                             Navigator.pop(context);
                           },
-                          child: Text('Voltar', style: TextStyle(color: Colors.white, fontFamily: 'Montserrat',)),
+                          child: Text('Voltar',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Montserrat',
+                              )),
                           style: ElevatedButton.styleFrom(
                             elevation: 10.0,
                             backgroundColor: Color(0xFF212E38),
@@ -159,7 +183,8 @@ class _cadastroPageState extends State<cadastroPage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool obscureText = false}) {
+  Widget _buildTextField(String label, TextEditingController controller,
+      {bool obscureText = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -199,7 +224,8 @@ class _cadastroPageState extends State<cadastroPage> {
     );
   }
 
-  Widget _buildDropdownField(String label, String? selectedValue, List<String> options) {
+  Widget _buildDropdownField(
+      String label, String? selectedValue, List<String> options) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -268,7 +294,9 @@ class _cadastroPageState extends State<cadastroPage> {
         TextFormField(
           readOnly: true,
           controller: TextEditingController(
-            text: _dataNascimento == null ? '' : DateFormat('dd/MM/yyyy').format(_dataNascimento!),
+            text: _dataNascimento == null
+                ? ''
+                : DateFormat('dd/MM/yyyy').format(_dataNascimento!),
           ),
           decoration: InputDecoration(
             contentPadding: EdgeInsets.symmetric(
@@ -310,14 +338,63 @@ class _cadastroPageState extends State<cadastroPage> {
   }
 
   Future<void> cadastrar() async {
-    try {
-      UserCredential userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
+    // Adicionar validação básica dos campos se necessário
+    if (_emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _nomeController.text.isEmpty ||
+        _formData.tipoUsuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Preencha todos os campos obrigatórios."),
+          backgroundColor: Colors.redAccent,
+        ),
       );
+      return;
+    }
+
+    try {
+      // 1. Criar usuário no Firebase Auth
+      UserCredential userCredential =
+          await _firebaseAuth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
       if (userCredential.user != null) {
-        userCredential.user!.updateDisplayName(_nomeController.text);
+        final user = userCredential.user!;
+        final uid = user.uid;
+
+        // 2. Atualizar nome no Auth (opcional, mas bom ter)
+        await user.updateDisplayName(_nomeController.text.trim());
+
+        // 3. Preparar dados para Firestore
+        final userData = {
+          'uid': uid,
+          'nome': _nomeController.text.trim(),
+          'email': _emailController.text.trim(),
+          'telefone': _telefoneController.text.trim(),
+          'genero': _generoSelecionado,
+          'dataNascimento': _dataNascimento != null
+              ? Timestamp.fromDate(_dataNascimento!)
+              : null,
+          'tipoUsuario': tipoUsuarioToString(
+              _formData.tipoUsuario), // Usar a função helper
+          'fornecedores': [],
+          'createdAt': Timestamp.now(), // Adicionar timestamp de criação
+        };
+
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setString('usuarioId',uid);
+        prefs.setString('usuarioNome', _nomeController.text.trim());
+        prefs.setString('tipoUsuario',   tipoUsuarioToString(
+              _formData.tipoUsuario), );
+
+        // 4. Salvar dados no Firestore
+        await _firestore.collection('users').doc(uid).set(userData);
+
+        // 5. Navegar para a próxima página APÓS sucesso
         // ignore: use_build_context_synchronously
+        if (!mounted) return; // Verificar se o widget ainda está montado
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const checkPage()),
@@ -325,21 +402,45 @@ class _cadastroPageState extends State<cadastroPage> {
         );
       }
     } on FirebaseAuthException catch (e) {
+      // ignore: use_build_context_synchronously
+      if (!mounted) return;
+      String message = "Ocorreu um erro no cadastro.";
       if (e.code == 'weak-password') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Crie uma senha mais forte"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        message = "Crie uma senha mais forte";
       } else if (e.code == 'email-already-in-use') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Email já cadastrado"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        message = "Email já cadastrado";
+      } else if (e.code == 'invalid-email') {
+        message = "Email inválido";
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } catch (e) {
+      // Tratar erros do Firestore ou outros erros gerais
+      // ignore: use_build_context_synchronously
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Erro ao salvar dados: ${e.toString()}"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
+  }
+}
+
+// Função helper para converter enum para String (coloque onde fizer sentido no seu projeto)
+String tipoUsuarioToString(TipoUsuario tipo) {
+  switch (tipo) {
+    case TipoUsuario.hospital:
+      return 'Hospital';
+    case TipoUsuario.fornecedor:
+      return 'Fornecedor';
+    // Adicione outros casos se houver
+    default:
+      return 'Desconhecido';
   }
 }

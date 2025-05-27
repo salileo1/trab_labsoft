@@ -11,8 +11,6 @@ class Instrumentais {
     required this.contagem,
   });
 
-  get usuarioId => null;
-
   // Método para converter o objeto para JSON
   Map<String, dynamic> toJson() {
     return {

@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:trab_labsoft/models/instrumentais/instrumentais.dart';
-
-
-
 
 class InstrumentaisList with ChangeNotifier {
   late final List<Instrumentais> _items;
@@ -16,7 +14,6 @@ class InstrumentaisList with ChangeNotifier {
     _carregarServicos();
   }
   List<Instrumentais> get items => [..._items];
-
 
   List<Map<String, dynamic>> toJson() {
     return _items.map((instrumental) => instrumental.toJson()).toList();
@@ -36,51 +33,50 @@ class InstrumentaisList with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<List<Instrumentais>> buscarTodosInstrumentais(int inicializacao) async {
-    CollectionReference<Map<String, dynamic>> processosRef =
-        FirebaseFirestore.instance.collection('instrumentais');
+  Future<List<Instrumentais>> buscarTodosInstrumentais(
+      int inicializacao) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return [];
+
+    final uid = user.uid;
+    CollectionReference<Map<String, dynamic>> userRef = FirebaseFirestore
+        .instance
+        .collection('users')
+        .doc(uid)
+        .collection('instrumentais');
 
     try {
-      QuerySnapshot<Map<String, dynamic>> querySnapshot =
-          await processosRef.get();
+      QuerySnapshot<Map<String, dynamic>> querySnapshot = await userRef.get();
 
-      List<Instrumentais> instrumentais = [];
-
-      List<Future<void>> futures = querySnapshot.docs.map((doc) async {
-        final resultado = doc.data();
-
-        final negociacao = Instrumentais(
-          id: resultado['id'].toString() ?? '',
-          nome: resultado['nome'] ?? '',
-          valor: resultado['valor'] ?? '',
-          contagem: resultado['contagem'] ?? '',
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return Instrumentais(
+          id: data['id'].toString(),
+          nome: data['nome'] ?? '',
+          valor: data['valor'] ?? '',
+          contagem: data['contagem'] ?? '',
         );
-
-        instrumentais.add(negociacao);
-      }).toList(); // Converter o iterável em uma lista
-
-      // Aguardar todas as consultas aos fornecedores serem concluídas
-      await Future.wait(futures);
-
-      return instrumentais;
+      }).toList();
     } catch (e) {
-      print('Erro ao buscar os instrumentais: $e');
-      return []; // Retorna uma lista vazia em caso de erro
+      print('Erro ao buscar os instrumentais do usuário: $e');
+      return [];
     }
   }
 
   Future<List<Map<String, dynamic>>> buscarInstrumentais() async {
-    List<Map<String, dynamic>> instrumentais = [];
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return [];
 
     try {
-      QuerySnapshot querySnapshot =
-          await FirebaseFirestore.instance.collection('instrumentais').get();
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('instrumentais')
+          .get();
 
-      instrumentais = querySnapshot.docs
+      return querySnapshot.docs
           .map((doc) => doc.data() as Map<String, dynamic>)
           .toList();
-
-      return instrumentais;
     } catch (e) {
       print("Erro ao buscar instrumentais: $e");
       return [];
@@ -88,94 +84,114 @@ class InstrumentaisList with ChangeNotifier {
   }
 
   Future<String> cadastrarInstrumentais(
-    String id,
     String nome,
     double valor,
     BuildContext context,
   ) async {
-    CollectionReference<Map<String, dynamic>> instrumentaisRef =
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception("Usuário não autenticado.");
+    }
+
+    final uid = user.uid;
+    final instrumentaisRef =
         FirebaseFirestore.instance.collection('instrumentais');
+    final userInstrumentaisRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('instrumentais');
 
     try {
+      // Obter o último ID
       QuerySnapshot<Map<String, dynamic>> querySnapshot =
           await instrumentaisRef.get();
 
-      List<int> ids = querySnapshot.docs.map((doc) {
-        return int.parse(doc.id);
-      }).toList();
-
+      List<int> ids =
+          querySnapshot.docs.map((doc) => int.parse(doc.id)).toList();
       int ultimoId = ids.isEmpty ? 0 : ids.reduce((a, b) => a > b ? a : b);
       int novoId = ultimoId + 1;
 
-
       final instrumentais = Instrumentais(
-          id: novoId.toString(),
-          nome: nome,
-          valor: valor,
-          contagem: 0,
-         );
+        id: novoId.toString(),
+        nome: nome,
+        valor: valor,
+        contagem: 0,
+      );
 
-      await instrumentaisRef.doc(novoId.toString()).set({
+      final instrumentoData = {
         'id': novoId.toString(),
         'nome': nome,
         'valor': valor,
         'contagem': 0,
-      });
+      };
 
-     
+      // Salvar na coleção principal
+      await instrumentaisRef.doc(novoId.toString()).set(instrumentoData);
+
+      // Salvar também na subcoleção do usuário
+      await userInstrumentaisRef.doc(novoId.toString()).set(instrumentoData);
+
+      // Atualizar estado local, se necessário
       _items.add(instrumentais);
       notifyListeners();
 
-
-
-      return instrumentais.id; // Retornar o ID do serviço cadastrado
+      return instrumentais.id;
     } catch (e) {
       print('Erro ao cadastrar o instrumental: $e');
-      throw e; // Lançar a exceção para ser tratada no código que chama este método
+      throw Exception('Erro ao cadastrar o instrumental: $e');
     }
   }
 
   Future<void> removerInstrumental(String id) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     try {
-      // Remover o procedimento da coleção no Firestore
-      await FirebaseFirestore.instance.collection('instrumental').doc(id).delete();
+      // Remover da coleção principal
+      await FirebaseFirestore.instance
+          .collection('instrumentais')
+          .doc(id)
+          .delete();
 
-      print('Instrumental removido do Firestore com sucesso');
+      // Remover da subcoleção do usuário
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('instrumentais')
+          .doc(id)
+          .delete();
 
-      // Remover o procedimento da lista local
       _items.removeWhere((instrumental) => instrumental.id == id);
-
-      print('Instrumental removido da lista local com sucesso');
-
-      // Notificar os ouvintes sobre a mudança na lista
       notifyListeners();
+      print('Instrumental removido com sucesso');
     } catch (e) {
-      print("Erro ao remover procedimento: $e");
+      print("Erro ao remover instrumental: $e");
     }
   }
 
   Future<Instrumentais?> buscarInstrumentalPorId(String idInstrumental) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+
     try {
-      QuerySnapshot<Map<String, dynamic>> querySnapshot =
+      DocumentSnapshot<Map<String, dynamic>> docSnapshot =
           await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
               .collection('instrumentais')
-              .where('id', isEqualTo: idInstrumental)
-              .limit(1)
+              .doc(idInstrumental)
               .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        final instrumentalData = querySnapshot.docs[0].data();
-
-        Instrumentais instrumentalRetornado = Instrumentais(
-          id: instrumentalData['id'].toString() ?? '',
-          nome: instrumentalData['nome'] ?? '',
-          valor: instrumentalData['valor'] ?? '',
-          contagem: instrumentalData['contagem'] ?? '',
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        return Instrumentais(
+          id: data['id'].toString(),
+          nome: data['nome'] ?? '',
+          valor: data['valor'] ?? '',
+          contagem: data['contagem'] ?? '',
         );
-
-        return instrumentalRetornado;
       } else {
-        return null; // Retorna null se não encontrar nenhum documento com o ID fornecido
+        return null;
       }
     } catch (e) {
       print("Erro ao buscar instrumental por ID: $e");
@@ -185,12 +201,28 @@ class InstrumentaisList with ChangeNotifier {
 
   Future<void> atualizarInstrumental(
       String id, String novoNome, double novoValor) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     try {
-      // Atualizar no Firestore
-      await FirebaseFirestore.instance.collection('instrumentais').doc(id).update({
+      final dadosAtualizados = {
         'nome': novoNome,
         'valor': novoValor,
-      });
+      };
+
+      // Atualizar na coleção principal
+      await FirebaseFirestore.instance
+          .collection('instrumentais')
+          .doc(id)
+          .update(dadosAtualizados);
+
+      // Atualizar na subcoleção do usuário
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('instrumentais')
+          .doc(id)
+          .update(dadosAtualizados);
 
       // Atualizar localmente
       int index = _items.indexWhere((intrumental) => intrumental.id == id);
@@ -203,7 +235,8 @@ class InstrumentaisList with ChangeNotifier {
         );
         notifyListeners();
       }
-      print("instrumental atualizado com sucesso!");
+
+      print("Instrumental atualizado com sucesso!");
     } catch (e) {
       print("Erro ao atualizar instrumental: $e");
     }

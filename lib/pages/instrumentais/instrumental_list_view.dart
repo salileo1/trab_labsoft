@@ -172,7 +172,7 @@ class InstrumentalListViewPage extends State<InstrumentaisListViewPage> {
 
   Future<void> _handleSubmit(InstrumentaisFormData formData) async {
     try {
-      await Provider.of<InstrumentaisList>(context, listen: false).cadastrarInstrumentais(formData.id, formData.nome, formData.valor, context);
+      await Provider.of<InstrumentaisList>(context, listen: false).cadastrarInstrumentais(formData.nome, formData.valor, context);
     } catch (error) {
       showDialog(
         context: context,
