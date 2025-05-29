@@ -19,7 +19,7 @@ class _HospitalSolicitacaoInstrumentalFormState
   bool _isLoadingInstrumentais = false; // Renamed for clarity
   bool _isSendingRequest = false;
   // Assuming DropdownFornecedores returns FornecedorData or similar object
-  FornecedorData? _selectedFornecedorData;
+  Fornecedor? _selectedFornecedorData;
   List<Instrumentais> _instrumentaisDisponiveis = [];
   Instrumentais? _selectedInstrumental;
   final _quantidadeController = TextEditingController(text: '1');
@@ -281,9 +281,9 @@ class _HospitalSolicitacaoInstrumentalFormState
                             // Ensure DropdownFornecedores calls onFornecedorSelecionado
                             // with a FornecedorData object (or null)
                             DropdownFornecedores(
-                              onFornecedorSelecionado: (fornecedor) { // Assuming fornecedor is FornecedorData?
+                              onFornecedorSelecionado: (Fornecedor? fornecedor) { // Explicitly typed
                                 setState(() {
-                                   _selectedFornecedorData = fornecedor.toString() as FornecedorData?;
+                                   _selectedFornecedorData = fornecedor; // Assign directly
                                    // Clear dependent fields when supplier changes
                                    _instrumentaisDisponiveis = [];
                                    _selectedInstrumental = null;
