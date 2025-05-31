@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:trab_labsoft/components/instrumentais/instrumental_add_modal.dart';
-import 'package:trab_labsoft/components/instrumentais/instrumental_item.dart';
 import 'package:trab_labsoft/models/instrumentais/instrumentais.dart';
 import 'package:trab_labsoft/models/instrumentais/instrumentais_list.dart';
 import 'package:trab_labsoft/pages/instrumentais/instrumental_detail_view.dart';
@@ -12,9 +11,12 @@ class InstrumentaisListViewEnhanced extends StatefulWidget {
   const InstrumentaisListViewEnhanced({Key? key, this.tipoStr}) : super(key: key);
 
   @override
-  _InstrumentaisListViewEnhancedState createState() => _InstrumentaisListViewEnhancedState();
+  _InstrumentaisListViewEnhancedState createState() =>
+      _InstrumentaisListViewEnhancedState();
 }
-class _InstrumentaisListViewEnhancedState extends State<InstrumentaisListViewEnhanced> {
+
+class _InstrumentaisListViewEnhancedState
+    extends State<InstrumentaisListViewEnhanced> {
   final TextEditingController _searchController = TextEditingController();
   List<Instrumentais> _instrumentais = [];
   bool _isLoading = true;
@@ -33,9 +35,10 @@ class _InstrumentaisListViewEnhancedState extends State<InstrumentaisListViewEnh
     });
 
     try {
-      final instrumentaisList = Provider.of<InstrumentaisList>(context, listen: false);
+      final instrumentaisList =
+          Provider.of<InstrumentaisList>(context, listen: false);
       final instrumentais = await instrumentaisList.buscarTodosInstrumentais(1);
-      
+
       setState(() {
         _instrumentais = instrumentais;
         _isLoading = false;
@@ -53,10 +56,10 @@ class _InstrumentaisListViewEnhancedState extends State<InstrumentaisListViewEnh
     if (searchTerm.isEmpty) {
       return _instrumentais;
     }
-    
+
     return _instrumentais.where((instrumental) {
       return instrumental.nome.toLowerCase().contains(searchTerm) ||
-             instrumental.id.toLowerCase().contains(searchTerm);
+          instrumental.id.toLowerCase().contains(searchTerm);
     }).toList();
   }
 
@@ -80,11 +83,12 @@ class _InstrumentaisListViewEnhancedState extends State<InstrumentaisListViewEnh
   Future<void> _handleSubmit(InstrumentaisFormData formData) async {
     try {
       await Provider.of<InstrumentaisList>(context, listen: false)
-          .cadastrarInstrumentais(formData.nome, formData.valor, context);
-      
+          .cadastrarInstrumentais(
+              formData.nome, formData.valor, formData.contagem, context);
+
       // Recarregar a lista após adicionar
       _loadInstrumentais();
-      
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Instrumental cadastrado com sucesso!')),
@@ -114,22 +118,26 @@ class _InstrumentaisListViewEnhancedState extends State<InstrumentaisListViewEnh
   @override
   Widget build(BuildContext context) {
     final filteredInstrumentais = _getFilteredInstrumentais();
-    
+
     return Scaffold(
+      // Fundo branco
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Instrumentais'),
-        backgroundColor: const Color.fromARGB(255, 33, 46, 56),
-        iconTheme: IconThemeData(color: Color(0xFFF2E8C7)),
+        title: const Text('Instrumentais', style: TextStyle(color: Colors.white),),
+        backgroundColor: Colors.green, // AppBar verde
+        iconTheme: const IconThemeData(color: Colors.white), // ícones brancos
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadInstrumentais,
             tooltip: 'Atualizar lista',
+            color: Colors.white,
           ),
         ],
       ),
       body: Column(
         children: [
+          // Barra de busca com borda arredondada
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
@@ -139,7 +147,7 @@ class _InstrumentaisListViewEnhancedState extends State<InstrumentaisListViewEnh
                 hintText: 'Digite o nome ou ID do instrumental',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.clear),
@@ -152,30 +160,49 @@ class _InstrumentaisListViewEnhancedState extends State<InstrumentaisListViewEnh
               onChanged: (_) => setState(() {}),
             ),
           ),
+          // Lista propriamente dita
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _errorMessage.isNotEmpty
-                    ? Center(child: Text(_errorMessage, style: TextStyle(color: Colors.red)))
+                    ? Center(
+                        child: Text(
+                          _errorMessage,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      )
                     : filteredInstrumentais.isEmpty
-                        ? const Center(child: Text('Nenhum instrumental encontrado'))
+                        ? const Center(
+                            child: Text('Nenhum instrumental encontrado'))
                         : ListView.builder(
                             padding: const EdgeInsets.all(8.0),
                             itemCount: filteredInstrumentais.length,
                             itemBuilder: (context, index) {
                               final instrumental = filteredInstrumentais[index];
                               return Card(
-                                margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 4.0, horizontal: 8.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 2,
                                 child: ListTile(
                                   title: Text(
                                     instrumental.nome,
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                   subtitle: Text(
-                                    'Valor: R\$ ${instrumental.valor.toStringAsFixed(2)} - Quantidade: ${instrumental.contagem}',
+                                    'Valor: R\$ ${instrumental.valor.toStringAsFixed(2)}  •  Quantidade: ${instrumental.contagem}',
                                   ),
-                                  trailing: const Icon(Icons.arrow_forward_ios),
-                                  onTap: () => _navigateToDetailView(instrumental),
+                                  trailing: const Icon(
+                                    Icons.arrow_forward_ios,
+                                    color: Colors.green,
+                                  ),
+                                  onTap: () =>
+                                      _navigateToDetailView(instrumental),
                                 ),
                               );
                             },
@@ -183,12 +210,15 @@ class _InstrumentaisListViewEnhancedState extends State<InstrumentaisListViewEnh
           ),
         ],
       ),
-      floatingActionButton: widget.tipoStr == 'Hospital' ? FloatingActionButton(
-        onPressed: _showAddInstrumentalModal,
-        backgroundColor: const Color(0xFF466B66),
-        child: const Icon(Icons.add),
-        tooltip: 'Adicionar Instrumental',
-      ) : null,
+      // FAB verde para Fornecedor
+      floatingActionButton: widget.tipoStr == 'Fornecedor'
+          ? FloatingActionButton(
+              onPressed: _showAddInstrumentalModal,
+              backgroundColor: Colors.green,
+              child: const Icon(Icons.add, color: Colors.white),
+              tooltip: 'Adicionar Instrumental',
+            )
+          : null,
     );
   }
 

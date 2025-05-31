@@ -17,7 +17,7 @@ class Solicitacao {
   final double valorTotal;
   final String observacoes;
   final Timestamp? dataEntregaDesejada;
-  final String status;
+  String status; // Made non-final to allow local update after change
   final Timestamp dataSolicitacao;
   // Optional: Add fields for hospital name if needed for Fornecedor view
   // String? hospitalNome;
@@ -53,7 +53,7 @@ class Solicitacao {
       valorTotal: (data['valorTotal'] ?? 0.0).toDouble(),
       observacoes: data['observacoes'] ?? '',
       dataEntregaDesejada: data['dataEntregaDesejada'] as Timestamp?,
-      status: data['status'] ?? 'desconhecido',
+      status: data['status']?.toLowerCase() ?? 'desconhecido', // Ensure status is lowercase
       dataSolicitacao: data['dataSolicitacao'] ?? Timestamp.now(), // Provide default if null
     );
   }
@@ -72,6 +72,10 @@ class _HistoricoSolicitacoesPageState extends State<HistoricoSolicitacoesPage> {
   bool _isLoading = true;
   List<Solicitacao> _solicitacoes = [];
   String? _errorMessage;
+
+  // Define possible statuses and terminal statuses
+  final List<String> _statusOptions = ['pendente', 'confirmada', 'rejeitada', 'finalizada'];
+  final List<String> _terminalStatuses = ['rejeitada', 'finalizada'];
 
   @override
   void initState() {
@@ -131,39 +135,95 @@ class _HistoricoSolicitacoesPageState extends State<HistoricoSolicitacoesPage> {
   }
 }
 
-  // Helper to format dates
+
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return 'N/A';
     return DateFormat('dd/MM/yyyy HH:mm').format(timestamp.toDate());
   }
 
-  // Helper to get status color
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pendente':
         return Colors.orange.shade700;
-      case 'aprovada':
-      case 'confirmada': // Assuming 'confirmada' is a possible status
+      case 'confirmada':
         return Colors.green.shade700;
       case 'rejeitada':
       case 'cancelada':
         return Colors.red.shade700;
-      case 'entregue':
-        return Colors.blue.shade700;
+      case 'finalizada':
+        return Colors.purple.shade700; // Changed color for delivered
       default:
         return Colors.grey.shade600;
     }
   }
 
+  Future<void> _updateStatus(Solicitacao solicitacao, String newStatus) async {
+    // Check if the new status is terminal
+    if (_terminalStatuses.contains(newStatus.toLowerCase())) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Confirmar Status: ${newStatus.toUpperCase()}'),
+          content: Text('Tem certeza que deseja definir o status como "${newStatus.toUpperCase()}"? Esta ação não poderá ser desfeita.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Confirmar', style: TextStyle(color: _getStatusColor(newStatus))), // Use status color
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) {
+        return; // User cancelled
+      }
+    }
+
+    // Proceed with update
+    try {
+      await FirebaseFirestore.instance
+          .collection('solicitacoesInstrumental')
+          .doc(solicitacao.id)
+          .update({'status': newStatus.toLowerCase()});
+
+      // Update local state immediately for better UX
+      if (mounted) {
+        setState(() {
+          solicitacao.status = newStatus.toLowerCase();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Status atualizado para ${newStatus.toUpperCase()}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Erro ao atualizar status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao atualizar status: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final Color primaryDarkColor = Theme.of(context).primaryColorDark; // Example: Color(0xFF212E38)
+    final Color primaryDarkColor = Theme.of(context).primaryColorDark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Histórico de Solicitações'),
         backgroundColor: primaryDarkColor,
-        foregroundColor: const Color(0xFFF2E8C7), // Color for title and icons
+        foregroundColor: Color.fromARGB(255, 255, 255, 255),
       ),
       body: _buildBody(),
     );
@@ -192,55 +252,77 @@ class _HistoricoSolicitacoesPageState extends State<HistoricoSolicitacoesPage> {
       );
     }
 
-    // Display the list of requests
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
       itemCount: _solicitacoes.length,
       itemBuilder: (context, index) {
         final solicitacao = _solicitacoes[index];
+        final bool isTerminal = _terminalStatuses.contains(solicitacao.status);
+        final bool canChangeStatus = _userType == 'Fornecedor' && !isTerminal;
+
         return Card(
           elevation: 3,
           margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(16.0),
-            title: Text(
-              solicitacao.instrumentalNome,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            subtitle: Column(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  solicitacao.instrumentalNome,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
                 const SizedBox(height: 6),
-                // Show Fornecedor for Hospital, maybe Hospital for Fornecedor later
                 if (_userType == 'Hospital')
                   Text('Fornecedor: ${solicitacao.fornecedorNome}'),
-                // Add Hospital Name display here if fetched for Fornecedor view
+                // TODO: Add Hospital Name display here if needed for Fornecedor view
                 Text('Quantidade: ${solicitacao.quantidade}'),
                 Text('Valor Total: R\$ ${solicitacao.valorTotal.toStringAsFixed(2)}'),
                 Text('Data Solicitação: ${_formatTimestamp(solicitacao.dataSolicitacao)}'),
                 if (solicitacao.dataEntregaDesejada != null)
                   Text('Entrega Desejada: ${_formatTimestamp(solicitacao.dataEntregaDesejada)}'),
-                const SizedBox(height: 4),
-                Text(
-                  'Status: ${solicitacao.status.toUpperCase()}',
-                  style: TextStyle(
-                    color: _getStatusColor(solicitacao.status),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                 if (solicitacao.observacoes.isNotEmpty)
+                if (solicitacao.observacoes.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
-                    child: Text('Obs: ${solicitacao.observacoes}', style: TextStyle(fontStyle: FontStyle.italic)),
+                    child: Text('Obs: ${solicitacao.observacoes}', style: const TextStyle(fontStyle: FontStyle.italic)),
                   ),
+                const SizedBox(height: 8),
+                // Status Display and Change Option
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Current Status Display
+                    Chip(
+                      label: Text(
+                        solicitacao.status.toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      backgroundColor: _getStatusColor(solicitacao.status),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    ),
+                    // Status Change Dropdown (only for Fornecedor and non-terminal status)
+                    if (canChangeStatus)
+                      DropdownButton<String>(
+                        value: solicitacao.status, // Current status
+                        icon: const Icon(Icons.edit, size: 18),
+                        underline: Container(), // Remove default underline
+                        items: _statusOptions.map((String statusValue) {
+                          return DropdownMenuItem<String>(
+                            value: statusValue,
+                            child: Text(statusValue.toUpperCase()),
+                          );
+                        }).toList(),
+                        onChanged: (String? newStatus) {
+                          if (newStatus != null && newStatus != solicitacao.status) {
+                            _updateStatus(solicitacao, newStatus);
+                          }
+                        },
+                      ),
+                  ],
+                ),
               ],
             ),
-            // Optional: Add trailing icon or onTap for details
-            // trailing: Icon(Icons.chevron_right),
-            // onTap: () {
-            //   // Navigate to detail page or show dialog
-            // },
           ),
         );
       },

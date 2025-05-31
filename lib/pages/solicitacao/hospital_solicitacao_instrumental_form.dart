@@ -242,15 +242,15 @@ class _HospitalSolicitacaoInstrumentalFormState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Solicitar Instrumental'),
-        backgroundColor: const Color.fromARGB(255, 33, 46, 56),
-        iconTheme: const IconThemeData(color: Color(0xFFF2E8C7)),
+        backgroundColor: Colors.green,
+        iconTheme: const IconThemeData(color: Colors.white),
         titleTextStyle: const TextStyle(
-          color: Color(0xFFF2E8C7),
+          color: Colors.white,
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
+        elevation: 2,
       ),
-      // Use _isLoadingFornecedores if DropdownFornecedores doesn't handle its own loading
       body: _isLoadingFornecedores
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -513,13 +513,13 @@ class _HospitalSolicitacaoInstrumentalFormState
                                     : ElevatedButton(
                                         onPressed: _enviarSolicitacao,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color.fromARGB(255, 33, 46, 56),
-                                          foregroundColor: const Color(0xFFF2E8C7),
+                                          backgroundColor: Colors.green,
+                                          foregroundColor: Colors.white,
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 50, vertical: 15),
                                           textStyle: const TextStyle(fontSize: 16),
                                         ),
-                                        child: const Text('Enviar Solicitação'),
+                                        child: const Text('Enviar Solicitação', style: TextStyle(color: Colors.white),),
                                       ),
                               ),
                             ],

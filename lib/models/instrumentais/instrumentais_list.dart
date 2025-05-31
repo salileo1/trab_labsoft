@@ -86,6 +86,7 @@ class InstrumentaisList with ChangeNotifier {
   Future<String> cadastrarInstrumentais(
     String nome,
     double valor,
+    int contagem,
     BuildContext context,
   ) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -115,14 +116,14 @@ class InstrumentaisList with ChangeNotifier {
         id: novoId.toString(),
         nome: nome,
         valor: valor,
-        contagem: 0,
+        contagem: contagem,
       );
 
       final instrumentoData = {
         'id': novoId.toString(),
         'nome': nome,
         'valor': valor,
-        'contagem': 0,
+        'contagem': contagem,
       };
 
       // Salvar na coleção principal

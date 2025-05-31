@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
       title: 'Aluga Instrumentais',
       theme: ThemeData(
         useMaterial3: true,
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.green,
       ),
       debugShowCheckedModeBanner: false,
       home: StreamBuilder<User?>(

@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:trab_labsoft/models/instrumentais/instrumentais.dart';
 
-
 class CadInstrumentalForm extends StatefulWidget {
   final void Function(InstrumentaisFormData) onSubmit;
 
@@ -23,7 +22,12 @@ class CadInstrumentalForm extends StatefulWidget {
 class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
   bool loading = false;
   final _formKey = GlobalKey<FormState>();
-  final _formData = InstrumentaisFormData(id: '', nome: '', valor: 0.0, contagem: 0);
+  final _formData = InstrumentaisFormData(
+    id: '',
+    nome: '',
+    valor: 0.0,
+    contagem: 0,
+  );
   dynamic _user;
 
   String idCliente = '';
@@ -31,6 +35,7 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
 
   late List<String> setorOptions = [];
   String? _selectedSetor;
+
   @override
   void initState() {
     super.initState();
@@ -56,8 +61,9 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  padding: EdgeInsets.all(15), //apply padding to all four sides
+                // Campo "Nome"
+                const Padding(
+                  padding: EdgeInsets.all(15),
                   child: Text(
                     "Nome",
                     style: TextStyle(
@@ -70,10 +76,10 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                 TextFormField(
                   key: const ValueKey('nome'),
                   initialValue: _formData.nome,
-                  onChanged: (email) => _formData.nome = email,
+                  onChanged: (nome) => _formData.nome = nome,
                   decoration: InputDecoration(
                     contentPadding:
-                        EdgeInsets.symmetric(vertical: 5, horizontal: 15),
+                        const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
                     filled: true,
                     fillColor: Colors.black12,
                     border: OutlineInputBorder(
@@ -81,10 +87,12 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  style: TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                 ),
-                Padding(
-                  padding: EdgeInsets.all(15), //apply padding to all four sides
+
+                // Campo "Valor"
+                const Padding(
+                  padding: EdgeInsets.all(15),
                   child: Text(
                     "Valor",
                     style: TextStyle(
@@ -96,13 +104,14 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                 ),
                 TextFormField(
                   key: const ValueKey('valor'),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (valor) {
-                    _formData.valor =
-                        double.tryParse(valor) ?? 0.0; // Converte para double
+                    _formData.valor = double.tryParse(valor) ?? 0.0;
                   },
                   decoration: InputDecoration(
                     contentPadding:
-                        EdgeInsets.symmetric(vertical: 5, horizontal: 15),
+                        const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
                     filled: true,
                     fillColor: Colors.black12,
                     border: OutlineInputBorder(
@@ -110,21 +119,57 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  style: TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                 ),
+
+                // Novo campo "Quantidade"
+                const Padding(
+                  padding: EdgeInsets.all(15),
+                  child: Text(
+                    "Quantidade",
+                    style: TextStyle(
+                      color: Color(0xFF466B66),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                TextFormField(
+                  key: const ValueKey('quantidade'),
+                  keyboardType: TextInputType.number,
+                  onChanged: (qtde) {
+                    _formData.contagem = int.tryParse(qtde) ?? 0;
+                  },
+                  decoration: InputDecoration(
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
+                    filled: true,
+                    fillColor: Colors.black12,
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Botão "Salvar"
                 ElevatedButton(
                   onPressed: () async {
                     try {
                       String uid = generateUID();
 
-                      // Obtenha o ID do usuário atual
-                      String? userId = FirebaseAuth.instance.currentUser?.uid;
+                      // Obtenha o ID do usuário atual (se precisar salvar em Firestore)
+                      String? userId =
+                          FirebaseAuth.instance.currentUser?.uid;
 
                       InstrumentaisFormData formData = InstrumentaisFormData(
                         id: uid,
                         nome: _formData.nome,
                         valor: _formData.valor,
-                        contagem: 0,
+                        contagem: _formData.contagem,
                       );
                       // Submeta os dados
                       widget.onSubmit(formData);
@@ -137,8 +182,7 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                         builder: (BuildContext context) {
                           return AlertDialog(
                             title: const Text('Erro'),
-                            content:
-                                Text('Ocorreu um erro ao cadastrar: $error'),
+                            content: Text('Ocorreu um erro ao cadastrar: $error'),
                             actions: [
                               TextButton(
                                 onPressed: () {
@@ -152,12 +196,12 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                       );
                     }
                   },
-                  child: Text('Salvar'),
+                  child: const Text('Salvar', style: TextStyle(color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     elevation: 10.0,
-                    backgroundColor: Color(0xFF466B66),
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20.0, vertical: 20.0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),

@@ -46,6 +46,7 @@ class Usuario {
     this.createdAt,
   });
 
+  // Converte para JSON (útil para enviar ao Firestore)
   Map<String, dynamic> toJson() {
     return {
       'uid': id,
@@ -56,18 +57,22 @@ class Usuario {
       'cnpj': cnpj,
       'endereco': endereco,
       'genero': genero,
-      'dataNascimento': dataNascimento != null ? Timestamp.fromDate(dataNascimento!) : null,
+      'dataNascimento': dataNascimento != null
+          ? Timestamp.fromDate(dataNascimento!)
+          : null,
       'fornecedores': fornecedores,
       'createdAt': createdAt ?? Timestamp.now(),
     };
   }
 
+  // Construtor a partir de um Map (por exemplo, ao ler do Firestore)
   factory Usuario.fromJson(Map<String, dynamic> json) {
     return Usuario(
       id: json['uid'] ?? '',
       nome: json['nome'] ?? '',
       email: json['email'] ?? '',
-      tipoUsuario: stringToTipoUsuario(json['tipoUsuario'] ?? 'hospital'),
+      tipoUsuario:
+          stringToTipoUsuario(json['tipoUsuario'] ?? 'hospital'),
       telefone: json['telefone'],
       cnpj: json['cnpj'],
       endereco: json['endereco'],
@@ -76,7 +81,22 @@ class Usuario {
           ? (json['dataNascimento'] as Timestamp).toDate()
           : null,
       fornecedores: json['fornecedores'],
-      createdAt: json['createdAt'] is Timestamp ? json['createdAt'] : null,
+      createdAt:
+          json['createdAt'] is Timestamp ? json['createdAt'] : null,
     );
+  }
+
+  /// Constrói um Usuario a partir de um DocumentSnapshot do Firestore
+  factory Usuario.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>?;
+
+    if (data == null) {
+      throw Exception('Documento de usuário sem dados: ${doc.id}');
+    }
+
+    // Garante que o campo 'uid' receba o doc.id
+    data['uid'] = doc.id;
+
+    return Usuario.fromJson(data);
   }
 }

@@ -12,11 +12,13 @@ class InstrumentalDetailView extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _InstrumentalDetailViewState createState() => _InstrumentalDetailViewState();
+  _InstrumentalDetailViewState createState() =>
+      _InstrumentalDetailViewState();
 }
 
 class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
   late Future<Instrumentais?> _instrumentalFuture;
+  final Color _primaryGreen = Colors.green.shade700;
 
   @override
   void initState() {
@@ -32,10 +34,15 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white, // Fundo branco
       appBar: AppBar(
-        title: const Text('Detalhes do Instrumental'),
-        backgroundColor: const Color.fromARGB(255, 33, 46, 56),
-        iconTheme: IconThemeData(color: Color(0xFFF2E8C7)),
+        title: const Text(
+          'Detalhes do Instrumental',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: _primaryGreen, // AppBar verde
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 2,
       ),
       body: FutureBuilder<Instrumentais?>(
         future: _instrumentalFuture,
@@ -46,7 +53,7 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
             return Center(
               child: Text(
                 'Erro ao carregar os detalhes: ${snapshot.error}',
-                style: TextStyle(color: Colors.red),
+                style: const TextStyle(color: Colors.red),
               ),
             );
           } else if (!snapshot.hasData || snapshot.data == null) {
@@ -61,10 +68,11 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Card de Informações Principais
                 Card(
                   elevation: 4,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -73,7 +81,7 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
                       children: [
                         Text(
                           instrumental.nome,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
@@ -81,16 +89,20 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
                         const SizedBox(height: 16),
                         _buildInfoRow('ID:', instrumental.id),
                         _buildInfoRow('Valor:', 'R\$ ${instrumental.valor.toStringAsFixed(2)}'),
-                        _buildInfoRow('Quantidade disponível:', instrumental.contagem.toString()),
+                        _buildInfoRow(
+                          'Quantidade disponível:',
+                          instrumental.contagem.toString(),
+                        ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
+                // Card de Ações (Editar / Excluir)
                 Card(
                   elevation: 4,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -102,6 +114,7 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color: _primaryGreen,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -112,22 +125,32 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
                               onPressed: () {
                                 _showEditDialog(instrumental);
                               },
-                              icon: Icon(Icons.edit),
-                              label: Text('Editar'),
+                              icon: const Icon(Icons.edit, color: Colors.white),
+                              label: const Text('Editar'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
+                                backgroundColor: _primaryGreen, // verde
                                 foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 12),
                               ),
                             ),
                             ElevatedButton.icon(
                               onPressed: () {
                                 _showDeleteConfirmation(instrumental);
                               },
-                              icon: Icon(Icons.delete),
-                              label: Text('Excluir'),
+                              icon: const Icon(Icons.delete, color: Colors.white),
+                              label: const Text('Excluir'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
+                                backgroundColor: Colors.red.shade700, // vermelho
                                 foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 12),
                               ),
                             ),
                           ],
@@ -151,10 +174,10 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 150,
+            width: 160,
             child: Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -163,7 +186,7 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16),
             ),
           ),
         ],
@@ -172,30 +195,33 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
   }
 
   void _showEditDialog(Instrumentais instrumental) {
-    final TextEditingController nomeController = TextEditingController(text: instrumental.nome);
-    final TextEditingController valorController = TextEditingController(text: instrumental.valor.toString());
-    final TextEditingController contagemController = TextEditingController(text: instrumental.contagem.toString());
+    final TextEditingController nomeController =
+        TextEditingController(text: instrumental.nome);
+    final TextEditingController valorController =
+        TextEditingController(text: instrumental.valor.toString());
+    final TextEditingController contagemController =
+        TextEditingController(text: instrumental.contagem.toString());
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Editar Instrumental'),
+        title: const Text('Editar Instrumental'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nomeController,
-                decoration: InputDecoration(labelText: 'Nome'),
+                decoration: const InputDecoration(labelText: 'Nome'),
               ),
               TextField(
                 controller: valorController,
-                decoration: InputDecoration(labelText: 'Valor'),
+                decoration: const InputDecoration(labelText: 'Valor'),
                 keyboardType: TextInputType.number,
               ),
               TextField(
                 controller: contagemController,
-                decoration: InputDecoration(labelText: 'Quantidade'),
+                decoration: const InputDecoration(labelText: 'Quantidade'),
                 keyboardType: TextInputType.number,
               ),
             ],
@@ -204,24 +230,35 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () async {
               try {
-                // Implementar a lógica de atualização aqui
-                // Por enquanto, apenas fechamos o diálogo
+                // TODO: implementar lógica de atualização em InstrumentaisList
+                // Exemplo (ajuste conforme sua API/Provider):
+                // await Provider.of<InstrumentaisList>(context, listen: false)
+                //     .atualizarInstrumental(
+                //         instrumental.id,
+                //         nomeController.text,
+                //         double.tryParse(valorController.text) ?? 0.0,
+                //         int.tryParse(contagemController.text) ?? 0);
+                //
+                // Por enquanto, apenas fechamos o diálogo:
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Funcionalidade em implementação')),
+                  const SnackBar(content: Text('Funcionalidade em implementação')),
                 );
+                // Recarrega os dados após salvar (se for implementar atualização real)
+                _loadInstrumental();
+                setState(() {});
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Erro ao atualizar: $e')),
                 );
               }
             },
-            child: Text('Salvar'),
+            child: const Text('Salvar'),
           ),
         ],
       ),
@@ -232,22 +269,26 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Confirmar exclusão'),
-        content: Text('Deseja realmente excluir o instrumental ${instrumental.nome}?'),
+        title: const Text('Confirmar exclusão'),
+        content: Text(
+            'Deseja realmente excluir o instrumental "${instrumental.nome}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () async {
               try {
-                // Implementar a lógica de exclusão aqui
-                // Por enquanto, apenas fechamos o diálogo e voltamos
-                Navigator.pop(context);
-                Navigator.pop(context);
+                // TODO: implementar lógica de exclusão em InstrumentaisList
+                // Exemplo (ajuste conforme sua API/Provider):
+                // await Provider.of<InstrumentaisList>(context, listen: false)
+                //     .excluirInstrumental(instrumental.id);
+                //
+                Navigator.pop(context); // fecha o diálogo
+                Navigator.pop(context); // volta para a lista
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Funcionalidade em implementação')),
+                  const SnackBar(content: Text('Funcionalidade em implementação')),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -255,8 +296,10 @@ class _InstrumentalDetailViewState extends State<InstrumentalDetailView> {
                 );
               }
             },
-            child: Text('Excluir'),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text(
+              'Excluir',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),

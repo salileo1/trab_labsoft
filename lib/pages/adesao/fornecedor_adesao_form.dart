@@ -1,297 +1,285 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:trab_labsoft/models/users/usuario_model.dart';
+import 'package:trab_labsoft/pages/adesao/adesao_request.dart'; // For hospital data
 
-class FornecedorAdesaoForm extends StatefulWidget {
-  const FornecedorAdesaoForm({Key? key}) : super(key: key);
+class SolicitacaoAdesaoPage extends StatefulWidget {
+  const SolicitacaoAdesaoPage({super.key});
 
   @override
-  _FornecedorAdesaoFormState createState() => _FornecedorAdesaoFormState();
+  State<SolicitacaoAdesaoPage> createState() => _SolicitacaoAdesaoPageState();
 }
 
-class _FornecedorAdesaoFormState extends State<FornecedorAdesaoForm> {
-  final _formKey = GlobalKey<FormState>();
-  final _nomeHospitalController = TextEditingController();
-  final _cnpjHospitalController = TextEditingController();
-  final _motivoController = TextEditingController();
-  final _contatoController = TextEditingController();
-  bool _isLoading = false;
-  List<String> _hospitais = [];
-  String? _selectedHospital;
+class _SolicitacaoAdesaoPageState extends State<SolicitacaoAdesaoPage> {
+  String? _fornecedorId;
+  String? _fornecedorNome;
+  bool _isLoadingHospitais = true;
+  bool _isSendingRequest = false;
+  List<Usuario> _hospitais = [];
+  Usuario? _selectedHospital;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _carregarHospitais();
+    _loadFornecedorDataAndFetchHospitais();
   }
 
-  Future<void> _carregarHospitais() async {
+  Future<void> _loadFornecedorDataAndFetchHospitais() async {
     setState(() {
-      _isLoading = true;
+      _isLoadingHospitais = true;
+      _errorMessage = null;
     });
-
     try {
-      // Simulação de carregamento de hospitais
-      // Em uma implementação real, isso viria do Firestore
-      await Future.delayed(Duration(seconds: 1));
-      setState(() {
-        _hospitais = [
-          'Hospital São Lucas',
-          'Hospital Albert Einstein',
-          'Hospital Sírio-Libanês',
-          'Hospital Santa Catarina',
-          'Hospital Oswaldo Cruz',
-        ];
-        _isLoading = false;
-      });
+      final prefs = await SharedPreferences.getInstance();
+      _fornecedorId = prefs.getString('usuarioId');
+      _fornecedorNome = prefs.getString('usuarioNome');
+
+      if (_fornecedorId == null || _fornecedorNome == null) {
+        throw Exception('Informações do fornecedor não encontradas.');
+      }
+
+      // 1) Buscar apenas pelo tipoUsuario == 'Hospital' (sem orderBy)
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('tipoUsuario', isEqualTo: 'Hospital')
+          .get();
+
+      // 2) Converter cada document em Usuario
+      final hospitaisData = querySnapshot.docs.map((doc) {
+        return Usuario.fromFirestore(doc);
+      }).toList();
+
+      // 3) Ordenar localmente pelo campo nome
+      hospitaisData.sort((a, b) => a.nome.compareTo(b.nome));
+
+      if (mounted) {
+        setState(() {
+          _hospitais = hospitaisData;
+          _isLoadingHospitais = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao carregar hospitais: $e')),
-      );
+      print('Erro ao carregar dados: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erro ao carregar hospitais: ${e.toString()}';
+          _isLoadingHospitais = false;
+        });
+      }
     }
   }
 
   Future<void> _enviarSolicitacao() async {
-    if (!_formKey.currentState!.validate()) {
+    if (_selectedHospital == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, selecione um hospital.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_fornecedorId == null || _fornecedorNome == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Erro: Informações do fornecedor não encontradas.'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     setState(() {
-      _isLoading = true;
+      _isSendingRequest = true;
     });
 
     try {
-      // Obter o ID do fornecedor atual (usuário logado)
-      final userId = FirebaseAuth.instance.currentUser?.uid;
-      
-      if (userId == null) {
-        throw Exception('Usuário não autenticado');
+      // 1) Verificar se já existe pedido pendente
+      final existingRequest = await FirebaseFirestore.instance
+          .collection('adesaoRequests')
+          .where('fornecedorId', isEqualTo: _fornecedorId)
+          .where('hospitalId', isEqualTo: _selectedHospital!.id)
+          .where('status', isEqualTo: 'pendente')
+          .limit(1)
+          .get();
+
+      if (existingRequest.docs.isNotEmpty) {
+        throw Exception('Já existe uma solicitação pendente para este hospital.');
       }
 
-      // Criar dados da solicitação
-      final solicitacaoData = {
-        'fornecedorId': userId,
-        'hospitalNome': _selectedHospital ?? _nomeHospitalController.text,
-        'cnpjHospital': _cnpjHospitalController.text,
-        'motivo': _motivoController.text,
-        'contato': _contatoController.text,
-        'status': 'pendente',
-        'dataSolicitacao': FieldValue.serverTimestamp(),
-      };
+      // 2) Verificar se já está associado (campo 'fornecedores' do hospital)
+      final hospitalDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_selectedHospital!.id)
+          .get();
+      final hospitalData = hospitalDoc.data();
+      if (hospitalData != null &&
+          hospitalData.containsKey('fornecedores') &&
+          hospitalData['fornecedores'] is List) {
+        List<dynamic> fornecedoresList = hospitalData['fornecedores'];
+        if (fornecedoresList.contains(_fornecedorId)) {
+          throw Exception('Você já está associado a este hospital.');
+        }
+      }
 
-      // Em uma implementação real, salvaríamos no Firestore
-      // await FirebaseFirestore.instance.collection('solicitacoesAdesao').add(solicitacaoData);
-      
-      // Simulação de envio bem-sucedido
-      await Future.delayed(Duration(seconds: 1));
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      // Mostrar mensagem de sucesso
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Solicitação enviada com sucesso!')),
+      // 3) Criar e salvar novo AdesaoRequest
+      final newRequest = AdesaoRequest(
+        id: '', // Firestore gerará o ID
+        fornecedorId: _fornecedorId!,
+        fornecedorNome: _fornecedorNome!,
+        hospitalId: _selectedHospital!.id,
+        status: 'pendente',
+        requestTimestamp: Timestamp.now(),
       );
 
-      // Limpar formulário
-      _formKey.currentState!.reset();
-      _nomeHospitalController.clear();
-      _cnpjHospitalController.clear();
-      _motivoController.clear();
-      _contatoController.clear();
-      setState(() {
-        _selectedHospital = null;
-      });
+      await FirebaseFirestore.instance
+          .collection('adesaoRequests')
+          .add(newRequest.toFirestore());
 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Solicitação de adesão enviada com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {
+          _selectedHospital = null;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao enviar solicitação: $e')),
-      );
+      print('Erro ao enviar solicitação: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao enviar solicitação: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingRequest = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final Color primaryDarkColor = Theme.of(context).primaryColorDark;
+    final Color primaryColor = Theme.of(context).primaryColor;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Solicitar Adesão a Hospital'),
-        backgroundColor: const Color.fromARGB(255, 33, 46, 56),
-        iconTheme: IconThemeData(color: Color(0xFFF2E8C7)),
+        title: const Text('Solicitar Adesão a Hospital', style: TextStyle(color: Colors.white),),
+        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: primaryDarkColor,
+        foregroundColor: primaryColor,
       ),
-      body: _isLoading && _hospitais.isEmpty
-          ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Selecione um Hospital',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 16),
-                            DropdownButtonFormField<String>(
-                              value: _selectedHospital,
-                              decoration: InputDecoration(
-                                labelText: 'Hospital',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _hospitais.map((hospital) {
-                                return DropdownMenuItem(
-                                  value: hospital,
-                                  child: Text(hospital),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedHospital = value;
-                                });
-                              },
-                              validator: (value) {
-                                if (_selectedHospital == null && _nomeHospitalController.text.isEmpty) {
-                                  return 'Selecione um hospital ou informe um novo';
-                                }
-                                return null;
-                              },
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Ou informe um novo hospital',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            TextFormField(
-                              controller: _nomeHospitalController,
-                              decoration: InputDecoration(
-                                labelText: 'Nome do Hospital',
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                            SizedBox(height: 16),
-                            TextFormField(
-                              controller: _cnpjHospitalController,
-                              decoration: InputDecoration(
-                                labelText: 'CNPJ do Hospital',
-                                border: OutlineInputBorder(),
-                              ),
-                              validator: (value) {
-                                if (_selectedHospital == null && (value == null || value.isEmpty)) {
-                                  return 'Informe o CNPJ do hospital';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Informações da Solicitação',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 16),
-                            TextFormField(
-                              controller: _motivoController,
-                              decoration: InputDecoration(
-                                labelText: 'Motivo da Solicitação',
-                                border: OutlineInputBorder(),
-                              ),
-                              maxLines: 3,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Informe o motivo da solicitação';
-                                }
-                                return null;
-                              },
-                            ),
-                            SizedBox(height: 16),
-                            TextFormField(
-                              controller: _contatoController,
-                              decoration: InputDecoration(
-                                labelText: 'Contato para Comunicação',
-                                border: OutlineInputBorder(),
-                                hintText: 'Email ou telefone',
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Informe um contato';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _enviarSolicitacao,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF466B66),
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                              'Enviar Solicitação',
-                              style: TextStyle(fontSize: 16, color: Colors.white),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: _buildBody(),
+      ),
     );
   }
 
-  @override
-  void dispose() {
-    _nomeHospitalController.dispose();
-    _cnpjHospitalController.dispose();
-    _motivoController.dispose();
-    _contatoController.dispose();
-    super.dispose();
+  Widget _buildBody() {
+    if (_isLoadingHospitais) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            _errorMessage!,
+            style: const TextStyle(color: Colors.red, fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    if (_hospitais.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text(
+            'Nenhum hospital encontrado para solicitar adesão.',
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Selecione o Hospital:',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<Usuario>(
+          value: _selectedHospital,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'Hospital',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+          hint: const Text('Selecione...'),
+          items: _hospitais.map((Usuario hospital) {
+            return DropdownMenuItem<Usuario>(
+              value: hospital,
+              child: Text(hospital.nome, overflow: TextOverflow.ellipsis),
+            );
+          }).toList(),
+          onChanged: (Usuario? newValue) {
+            setState(() {
+              _selectedHospital = newValue;
+            });
+          },
+          validator: (value) => value == null ? 'Campo obrigatório' : null,
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton.icon(
+          icon: _isSendingRequest
+              ? Container(
+                  width: 20,
+                  height: 20,
+                  padding: const EdgeInsets.all(2.0),
+                  child: const CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                )
+              : const Icon(Icons.send, color: Colors.white,),
+          label: Text(_isSendingRequest
+              ? 'Enviando...'
+              : 'Enviar Solicitação', style: TextStyle(color: Colors.white)),
+          onPressed: _isSendingRequest ? null : _enviarSolicitacao,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).primaryColorDark,
+            foregroundColor: Theme.of(context).primaryColor,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            textStyle:
+                const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
