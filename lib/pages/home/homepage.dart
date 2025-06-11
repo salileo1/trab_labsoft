@@ -6,6 +6,7 @@ import 'package:trab_labsoft/components/instrumentais/instrumental_add_modal.dar
 import 'package:trab_labsoft/models/instrumentais/instrumentais_list.dart';
 import 'package:trab_labsoft/pages/adesao/fornecedor_adesao_form.dart';
 import 'package:trab_labsoft/pages/adesao/lista_fornecedores_page.dart';
+import 'package:trab_labsoft/pages/adesao/lista_hospitais_page.dart';
 import 'package:trab_labsoft/pages/adesao/lista_solicitacoes_adesao_page.dart';
 import 'package:trab_labsoft/pages/auth/check_page.dart';
 import 'package:trab_labsoft/pages/instrumentais/instrumental_list_view_enhanced.dart';
@@ -141,6 +142,22 @@ class _HomePageState extends State<HomePage> {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (ctx) => const SolicitacoesPendentesPage(),
+                  ),
+                );
+              },
+              color: Colors.white,
+            ),
+             _buildDrawerItem(
+              context,
+              icon: Icons.manage_accounts,
+              text: 'Lista de Hospitais',
+              onTap: () {
+                if (MediaQuery.of(context).size.width < 600) {
+                  Navigator.pop(context);
+                }
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (ctx) => const ListaHospitaisPage(),
                   ),
                 );
               },
@@ -333,6 +350,20 @@ class _HomePageState extends State<HomePage> {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (ctx) => const SolicitacoesPendentesPage(),
+              ),
+            );
+          },
+        ),
+      );
+      buttons.add(
+        _buildActionButton(
+          context,
+          icon: Icons.manage_accounts,
+          text: 'Lista de Hospitais',
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (ctx) => const ListaHospitaisPage(),
               ),
             );
           },

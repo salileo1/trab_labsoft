@@ -37,12 +37,12 @@ class _cadastroPageState extends State<cadastroPage> {
     // final UsuarioFormData _formData = UsuarioFormData(); // Removido daqui
 
     return Scaffold(
-      backgroundColor: Color(0xFFF2E8C7),
+      backgroundColor: Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
-        backgroundColor: Color(0xFFF2E8C7),
+        backgroundColor: Color.fromARGB(255, 255, 255, 255),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Color(0xFF212E38)),
+          icon: Icon(Icons.arrow_back, color: Color.fromARGB(255, 5, 146, 24)),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -56,22 +56,11 @@ class _cadastroPageState extends State<cadastroPage> {
                 child: Padding(
                   padding: EdgeInsets.all(30),
                   child: Padding(
-                    padding: const EdgeInsets.all(30),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.network(
-                              'https://firebasestorage.googleapis.com/v0/b/sense-pel.appspot.com/o/image-removebg-preview.png?alt=media&token=9a7a4329-f7b2-4d95-bc97-1d9fd7959f51',
-                              height: 150,
-                              width: 150,
-                            ),
-                          ],
-                        ),
                         DropdownButtonFormField<TipoUsuario>(
                           decoration:
                               InputDecoration(labelText: 'Tipo de Usuário'),
@@ -97,76 +86,42 @@ class _cadastroPageState extends State<cadastroPage> {
                             return null;
                           },
                         ),
-                        _buildTextField("Nome completo", _nomeController),
+                        _buildTextField("Nome", _nomeController),
                         _buildTextField("Email", _emailController),
                         _buildTextField("Senha", _passwordController,
                             obscureText: true),
                         _buildTextField("Telefone", _telefoneController),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildDropdownField(
-                                  "Gênero",
-                                  _generoSelecionado,
-                                  ["Masculino", "Feminino", "Outro"]),
-                            ),
-                            SizedBox(width: 15), // Espaço entre os dois campos
-                            Expanded(
-                              child: _buildDateField(
-                                  "Data de Nascimento", context),
-                            ),
-                          ],
-                        ),
                         SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: () {
-                            if (_nomeController.text.toLowerCase() ==
-                                'bloqueio') {
-                              showToast(
-                                  context,
-                                  'Não foi possível cadastrar',
-                                  'Não é permitido criar um usuario com esse nome',
-                                  ToastificationType.error);
-                            } else {
-                              cadastrar();
-                            }
-                          },
-                          child: Text('Cadastrar',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'Montserrat',
-                              )),
-                          style: ElevatedButton.styleFrom(
-                            elevation: 10.0,
-                            backgroundColor: Color(0xFF212E38),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 20.0,
-                              vertical: 20.0,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: Text('Voltar',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'Montserrat',
-                              )),
-                          style: ElevatedButton.styleFrom(
-                            elevation: 10.0,
-                            backgroundColor: Color(0xFF212E38),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 20.0,
-                              vertical: 20.0,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (_nomeController.text.toLowerCase() ==
+                                  'bloqueio') {
+                                showToast(
+                                    context,
+                                    'Não foi possível cadastrar',
+                                    'Não é permitido criar um usuario com esse nome',
+                                    ToastificationType.error);
+                              } else {
+                                cadastrar();
+                              }
+                            },
+                            child: Text('Cadastrar',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Montserrat',
+                                )),
+                            style: ElevatedButton.styleFrom(
+                              elevation: 10.0,
+                              backgroundColor: Color.fromARGB(255, 5, 146, 24),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 20.0,
+                                vertical: 20.0,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
                             ),
                           ),
                         ),
@@ -193,7 +148,7 @@ class _cadastroPageState extends State<cadastroPage> {
           child: Text(
             label,
             style: TextStyle(
-              color: Color(0xFF212E38),
+              color: Color.fromARGB(255, 5, 146, 24),
               fontWeight: FontWeight.bold,
               fontFamily: 'Montserrat',
               fontSize: 16,
@@ -234,7 +189,7 @@ class _cadastroPageState extends State<cadastroPage> {
           child: Text(
             label,
             style: TextStyle(
-              color: Color(0xFF212E38),
+              color: Color.fromARGB(255, 5, 146, 24),
               fontWeight: FontWeight.bold,
               fontFamily: 'Montserrat',
               fontSize: 16,
@@ -284,7 +239,7 @@ class _cadastroPageState extends State<cadastroPage> {
           child: Text(
             label,
             style: TextStyle(
-              color: Color(0xFF212E38),
+              color: Color.fromARGB(255, 5, 146, 24),
               fontWeight: FontWeight.bold,
               fontFamily: 'Montserrat',
               fontSize: 16,
@@ -384,10 +339,12 @@ class _cadastroPageState extends State<cadastroPage> {
         };
 
         final prefs = await SharedPreferences.getInstance();
-        prefs.setString('usuarioId',uid);
+        prefs.setString('usuarioId', uid);
         prefs.setString('usuarioNome', _nomeController.text.trim());
-        prefs.setString('tipoUsuario',   tipoUsuarioToString(
-              _formData.tipoUsuario), );
+        prefs.setString(
+          'tipoUsuario',
+          tipoUsuarioToString(_formData.tipoUsuario),
+        );
 
         // 4. Salvar dados no Firestore
         await _firestore.collection('users').doc(uid).set(userData);

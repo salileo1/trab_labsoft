@@ -163,8 +163,8 @@ class _HospitalSolicitacaoInstrumentalFormState
 
       final solicitacaoData = {
         'hospitalId': userId,
-        'fornecedorId': _selectedFornecedorData!.uid, // Store supplier ID
-        'fornecedorNome': _selectedFornecedorData!.nome, // Store supplier name for convenience
+        'fornecedorId': _selectedFornecedorData!.uid, 
+        'fornecedorNome': _selectedFornecedorData!.nome, 
         'instrumentalId': _selectedInstrumental!.id,
         'instrumentalNome': _selectedInstrumental!.nome,
         'quantidade': quantidade,

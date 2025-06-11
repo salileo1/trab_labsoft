@@ -69,49 +69,123 @@ class _SolicitacoesPendentesPageState extends State<SolicitacoesPendentesPage> {
       DateFormat('dd/MM/yyyy HH:mm').format(ts.toDate());
 
   Future<void> _updateStatus(
-      Solicitacao solicitacao, String novoStatus) async {
-    bool proceed = true;
-    if (novoStatus == 'rejeitada') {
-      proceed = await showDialog<bool>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('Confirmar Rejeição'),
-              content: const Text(
-                  'Deseja realmente rejeitar esta solicitação?'),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Cancelar')),
-                TextButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('Rejeitar', style: TextStyle(color: Colors.red))),
-              ],
-            ),
-          ) ==
-          true;
+    Solicitacao solicitacao,
+    String novoStatus,
+  ) async {
+  bool proceed = true;
+  // Confirmação para rejeição
+  if (novoStatus == 'rejeitada') {
+    proceed = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Confirmar Rejeição'),
+            content: const Text('Deseja realmente rejeitar esta solicitação?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Rejeitar',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+        ) ==
+        true;
+  }
+  if (!proceed) return;
+
+  final firestore = FirebaseFirestore.instance;
+  final solicitRef = firestore
+      .collection('solicitacoesInstrumental')
+      .doc(solicitacao.id);
+  final fornecedorRef = firestore
+      .collection('users')
+      .doc(solicitacao.fornecedorId)
+      .collection('instrumentais')
+      .doc(solicitacao.instrumentalId);
+  final hospitalRef = firestore
+      .collection('users')
+      .doc(solicitacao.hospitalId)
+      .collection('instrumentais')
+      .doc(solicitacao.instrumentalId);
+
+  try {
+    // Fluxo de ACEITAÇÃO: decrementa do fornecedor e incrementa no hospital
+    if (novoStatus == 'confirmada') {
+      final batch = firestore.batch();
+
+      // 1) Decrementa contagem do fornecedor
+      batch.update(fornecedorRef, {
+        'contagem': FieldValue.increment(-solicitacao.quantidade),
+      });
+
+      // 2) Incrementa (ou cria) o instrumental no hospital
+      batch.set(
+        hospitalRef,
+        {
+          'id':       solicitacao.instrumentalId,
+          'nome':     solicitacao.instrumentalNome,
+          'valor':    solicitacao.valorUnitario,
+          'contagem': FieldValue.increment(solicitacao.quantidade),
+        },
+        SetOptions(merge: true),
+      );
+
+      // 3) Atualiza status da solicitação
+      batch.update(solicitRef, {'status': novoStatus});
+
+      await batch.commit();
+    }
+    // Fluxo de FINALIZAÇÃO: devolve para o fornecedor e remove do hospital
+    else if (novoStatus == 'finalizada') {
+      final batch = firestore.batch();
+
+      // 1) Incrementa contagem do fornecedor
+      batch.update(fornecedorRef, {
+        'contagem': FieldValue.increment(solicitacao.quantidade),
+      });
+
+      // 2) Remove instrumental do hospital
+      batch.delete(hospitalRef);
+
+      // 3) Atualiza status da solicitação
+      batch.update(solicitRef, {'status': novoStatus});
+
+      await batch.commit();
+    }
+    // Fluxo de REJEIÇÃO ou outros status simples
+    else {
+      await solicitRef.update({'status': novoStatus});
     }
 
-    if (!proceed) return;
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('solicitacoesInstrumental')
-          .doc(solicitacao.id)
-          .update({'status': novoStatus});
-
+    // Atualiza a lista local e exibe feedback
+    if (mounted) {
       setState(() {
         _pendentes.remove(solicitacao);
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Solicitação ${novoStatus == 'confirmada' ? 'aceita' : 'rejeitada'} com sucesso.'),
-          backgroundColor:
-              novoStatus == 'confirmada' ? Colors.green : Colors.red,
+            novoStatus == 'confirmada'
+                ? 'Solicitação aceita e estoques atualizados.'
+                : novoStatus == 'finalizada'
+                    ? 'Solicitação finalizada: estoque ajustado.'
+                    : 'Solicitação $novoStatus com sucesso.',
+          ),
+          backgroundColor: novoStatus == 'confirmada' ||
+                  novoStatus == 'finalizada'
+              ? Colors.green
+              : Colors.red,
         ),
       );
-    } catch (e) {
+    }
+  } catch (e) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erro ao atualizar: ${e.toString()}'),
@@ -120,12 +194,20 @@ class _SolicitacoesPendentesPageState extends State<SolicitacoesPendentesPage> {
       );
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
+    final Color primaryDarkColor = Theme.of(context).primaryColorDark;
+    final Color primaryColor = Theme.of(context).primaryColor;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Solicitações Pendentes'),
+        title: const Text('Solicitações Pendentes', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: primaryDarkColor,
+        foregroundColor: primaryColor,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -153,6 +235,8 @@ class _SolicitacoesPendentesPageState extends State<SolicitacoesPendentesPage> {
                                 Text('Quantidade: ${s.quantidade}'),
                                 Text('Valor Total: R\$ ${s.valorTotal.toStringAsFixed(2)}'),
                                 Text('Data: ${_formatTimestamp(s.dataSolicitacao)}'),
+                                Text('Descrição: ${s.observacoes}'),
+
                                 const SizedBox(height: 8),
                                 Row(
                                   mainAxisAlignment:
@@ -161,14 +245,14 @@ class _SolicitacoesPendentesPageState extends State<SolicitacoesPendentesPage> {
                                     ElevatedButton(
                                       onPressed: () =>
                                           _updateStatus(s, 'confirmada'),
-                                      child: const Text('Aceitar'),
+                                      child: const Text('Aceitar', style: TextStyle(color: Colors.white)),
                                       style: ElevatedButton.styleFrom(
                                           primary: Colors.green),
                                     ),
                                     ElevatedButton(
                                       onPressed: () =>
                                           _updateStatus(s, 'rejeitada'),
-                                      child: const Text('Recusar'),
+                                      child: const Text('Recusar', style: TextStyle(color: Colors.white)),
                                       style: ElevatedButton.styleFrom(
                                           primary: Colors.red),
                                     ),

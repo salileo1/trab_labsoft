@@ -157,63 +157,131 @@ class _HistoricoSolicitacoesPageState extends State<HistoricoSolicitacoesPage> {
     }
   }
 
-  Future<void> _updateStatus(Solicitacao solicitacao, String newStatus) async {
-    // Check if the new status is terminal
-    if (_terminalStatuses.contains(newStatus.toLowerCase())) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Confirmar Status: ${newStatus.toUpperCase()}'),
-          content: Text('Tem certeza que deseja definir o status como "${newStatus.toUpperCase()}"? Esta ação não poderá ser desfeita.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text('Confirmar', style: TextStyle(color: _getStatusColor(newStatus))), // Use status color
-            ),
-          ],
+ Future<void> _updateStatus(
+  Solicitacao solicitacao,
+  String newStatus,
+) async {
+  final statusLower = newStatus.toLowerCase();
+
+  // 1) Se for status terminal, pedir confirmação
+  if (_terminalStatuses.contains(statusLower)) {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirmar Status: ${newStatus.toUpperCase()}'),
+        content: Text(
+          'Tem certeza que deseja definir o status como '
+          '"${newStatus.toUpperCase()}"? Esta ação não poderá ser desfeita.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Confirmar',
+              style: TextStyle(color: _getStatusColor(statusLower)),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+  }
+
+  final firestore  = FirebaseFirestore.instance;
+  final solicitRef = firestore
+      .collection('solicitacoesInstrumental')
+      .doc(solicitacao.id);
+
+  final fornecedorRef = firestore
+      .collection('users')
+      .doc(solicitacao.fornecedorId)
+      .collection('instrumentais')
+      .doc(solicitacao.instrumentalId);
+
+  final hospitalRef = firestore
+      .collection('users')
+      .doc(solicitacao.hospitalId)
+      .collection('instrumentais')
+      .doc(solicitacao.instrumentalId);
+
+  try {
+    // 2) Se for CONFIRMADA: decrementa do fornecedor e incrementa no hospital
+    if (statusLower == 'confirmada') {
+      final batch = firestore.batch();
+
+      batch.update(fornecedorRef, {
+        'contagem': FieldValue.increment(-solicitacao.quantidade),
+      });
+
+      batch.set(
+        hospitalRef,
+        {
+          'id':       solicitacao.instrumentalId,
+          'nome':     solicitacao.instrumentalNome,
+          'valor':    solicitacao.valorUnitario,
+          'contagem': FieldValue.increment(solicitacao.quantidade),
+        },
+        SetOptions(merge: true),
       );
 
-      if (confirm != true) {
-        return; // User cancelled
-      }
+      batch.update(solicitRef, {'status': statusLower});
+      await batch.commit();
+    }
+    // 3) Se for FINALIZADA: reverte no fornecedor e remove do hospital
+    else if (statusLower == 'finalizada') {
+      final batch = firestore.batch();
+
+      batch.update(fornecedorRef, {
+        'contagem': FieldValue.increment(solicitacao.quantidade),
+      });
+
+      batch.delete(hospitalRef);
+
+      batch.update(solicitRef, {'status': statusLower});
+      await batch.commit();
+    }
+    // 4) Para REJEITADA ou outros status simples
+    else {
+      await solicitRef.update({'status': statusLower});
     }
 
-    // Proceed with update
-    try {
-      await FirebaseFirestore.instance
-          .collection('solicitacoesInstrumental')
-          .doc(solicitacao.id)
-          .update({'status': newStatus.toLowerCase()});
-
-      // Update local state immediately for better UX
-      if (mounted) {
-        setState(() {
-          solicitacao.status = newStatus.toLowerCase();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Status atualizado para ${newStatus.toUpperCase()}'),
-            backgroundColor: Colors.green,
+    // 5) Atualiza apenas o campo local de status
+    if (mounted) {
+      setState(() {
+        solicitacao.status = statusLower;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            statusLower == 'confirmada'
+                ? 'Solicitação aceita e estoques atualizados.'
+                : statusLower == 'finalizada'
+                    ? 'Solicitação finalizada: estoque revertido e instrumento removido.'
+                    : 'Status atualizado para ${newStatus.toUpperCase()}.',
           ),
-        );
-      }
-    } catch (e) {
-      print('Erro ao atualizar status: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao atualizar status: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+          backgroundColor:
+              (statusLower == 'confirmada' || statusLower == 'finalizada')
+                  ? Colors.green
+                  : Colors.red,
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao atualizar status: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {

@@ -95,8 +95,7 @@ class InstrumentaisList with ChangeNotifier {
     }
 
     final uid = user.uid;
-    final instrumentaisRef =
-        FirebaseFirestore.instance.collection('instrumentais');
+
     final userInstrumentaisRef = FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
@@ -105,7 +104,7 @@ class InstrumentaisList with ChangeNotifier {
     try {
       // Obter o último ID
       QuerySnapshot<Map<String, dynamic>> querySnapshot =
-          await instrumentaisRef.get();
+          await userInstrumentaisRef.get();
 
       List<int> ids =
           querySnapshot.docs.map((doc) => int.parse(doc.id)).toList();
@@ -126,10 +125,7 @@ class InstrumentaisList with ChangeNotifier {
         'contagem': contagem,
       };
 
-      // Salvar na coleção principal
-      await instrumentaisRef.doc(novoId.toString()).set(instrumentoData);
 
-      // Salvar também na subcoleção do usuário
       await userInstrumentaisRef.doc(novoId.toString()).set(instrumentoData);
 
       // Atualizar estado local, se necessário
