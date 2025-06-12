@@ -197,45 +197,43 @@ class InstrumentaisList with ChangeNotifier {
   }
 
   Future<void> atualizarInstrumental(
-      String id, String novoNome, double novoValor) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    String id,
+    String novoNome,
+    double novoValor,
+    int novaContagem,
+  ) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
 
-    try {
-      final dadosAtualizados = {
-        'nome': novoNome,
-        'valor': novoValor,
-      };
+  final dadosAtualizados = {
+    'nome': novoNome,
+    'valor': novoValor,
+    'contagem': novaContagem,
+  };
 
-      // Atualizar na coleção principal
-      await FirebaseFirestore.instance
-          .collection('instrumentais')
-          .doc(id)
-          .update(dadosAtualizados);
+  try {
+    final userRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('instrumentais')
+        .doc(id);
 
-      // Atualizar na subcoleção do usuário
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('instrumentais')
-          .doc(id)
-          .update(dadosAtualizados);
+    await userRef.update(dadosAtualizados);
 
-      // Atualizar localmente
-      int index = _items.indexWhere((intrumental) => intrumental.id == id);
-      if (index != -1) {
-        _items[index] = Instrumentais(
-          id: id,
-          nome: novoNome,
-          valor: novoValor,
-          contagem: _items[index].contagem,
-        );
-        notifyListeners();
-      }
-
-      print("Instrumental atualizado com sucesso!");
-    } catch (e) {
-      print("Erro ao atualizar instrumental: $e");
+    // Atualiza localmente
+    final index = _items.indexWhere((i) => i.id == id);
+    if (index != -1) {
+      _items[index] = Instrumentais(
+        id: id,
+        nome: novoNome,
+        valor: novoValor,
+        contagem: novaContagem,
+      );
+      notifyListeners();
     }
+  } catch (e) {
+    print("Erro ao atualizar instrumental: $e");
+    throw e;
   }
+}
 }

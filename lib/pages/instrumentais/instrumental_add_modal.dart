@@ -87,7 +87,7 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
                 ),
 
                 // Campo "Valor"
@@ -119,7 +119,7 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
                 ),
 
                 // Novo campo "Quantidade"
@@ -140,6 +140,7 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                   onChanged: (qtde) {
                     _formData.contagem = int.tryParse(qtde) ?? 0;
                   },
+                  
                   decoration: InputDecoration(
                     contentPadding:
                         const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
@@ -150,7 +151,7 @@ class _CadInstrumentalFormState extends State<CadInstrumentalForm> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.black),  
                 ),
 
                 const SizedBox(height: 24),
